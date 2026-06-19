@@ -9,6 +9,9 @@ import copy
 import time
 import base64
 
+# ── Ruta base del proyecto (funciona en local y en Streamlit Cloud) ──
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
 # ── Configuración ────────────────────────────────────────────
 st.set_page_config(
     page_title="Sudoku Master 🐱‍🔮",
@@ -284,7 +287,7 @@ st.markdown("<p class='pixel-subtitle'>★ LA GATA MAGA RESUELVE TODO ★</p>", 
 # ── Cargar modelos ───────────────────────────────────────────
 @st.cache_resource
 def cargar_modelos():
-    modelo_yolo = YOLO("../modelos/best.pt")
+    modelo_yolo = YOLO(os.path.join(BASE_DIR, "modelos", "best.pt"))
     reader = easyocr.Reader(['en'], gpu=False)
     return modelo_yolo, reader
 
