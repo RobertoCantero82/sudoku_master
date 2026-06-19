@@ -1,7 +1,7 @@
 streamlit
 ultralytics
 easyocr
-opencv-python-headless
+opencv-python-headless==4.8.1.78
 numpy
 torch
 torchvision
