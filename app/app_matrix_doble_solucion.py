@@ -17,7 +17,7 @@ MODELOS_DIR = os.path.join(BASE_DIR, "..", "modelos")
 
 st.set_page_config(page_title="SUDOKU RELOADED", page_icon="🟢", layout="centered")
 
-# oculto el menú hamburguesa, el header y el footer de streamlit
+# oculto el menú, el header y el footer de streamlit
 st.markdown("""
 <style>
 #MainMenu { visibility: hidden; }
