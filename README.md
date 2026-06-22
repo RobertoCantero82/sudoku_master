@@ -2,7 +2,7 @@
 
 > *"Desafortunadamente, nadie te puede decir qué es Matrix. Tienes que verlo por ti mismo."*
 
-![Solucionador de Sudokus](001.png)
+![Sudoku Reloaded Banner](banner_animated.gif)
 
 Proceso completa de visión computacional que detecta, lee y resuelve sudokus a partir de una fotografía. En este proyecto se combina la detección de objetos, el reconocimiento óptico de caracteres con entrenamiento de redes neuronales, resolución del problema a través de redes convolucionales y backtracking. Todo ello envuelto en una app temática basada en la saga " The Matrix".
 
