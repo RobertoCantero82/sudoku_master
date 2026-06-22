@@ -1,146 +1,185 @@
-# 🟢 SUDOKU RELOADED
+# SUDOKU RELOADED
 
-> *Hay un fallo en la Matrix.* Sube una foto de un sudoku y el sistema lo localiza, descifra y resuelve: visión por computador, deep learning y backtracking, envueltos en una interfaz que te mete dentro de la Matrix.
+> *"Desafortunadamente, nadie te puede decir qué es Matrix. Tienes que verlo por ti mismo."*
 
-Proyecto final del bootcamp de Data Science de **The Bridge** (2026).
+![Solucionador de Sudokus](001.png)
 
----
-
-## 🎯 Qué hace
-
-Subes una foto de un sudoku (captura de pantalla, foto de periódico o de libro) y la aplicación:
-
-1. **Localiza** el recuadro del sudoku en la imagen con un modelo YOLO entrenado a medida.
-2. **Recorta y corrige** la perspectiva para obtener una cuadrícula limpia.
-3. **Divide** la cuadrícula en 81 celdas.
-4. **Lee** el dígito de cada celda con una red neuronal (OCR).
-5. **Resuelve** el puzzle por backtracking.
-6. Muestra la solución diferenciando los números originales de los reconstruidos por el sistema.
+Proceso completa de visión computacional que detecta, lee y resuelve sudokus a partir de una fotografía. En este proyecto se combina la detección de objetos, el reconocimiento óptico de caracteres con entrenamiento de redes neuronales, resolución del problema a través de redes convolucionales y backtracking. Todo ello envuelto en una app temática basada en la saga " The Matrix".
 
 ---
 
-## 🧠 Arquitectura del pipeline
+## Estructura del proyecto
 
 ```
-Foto → YOLO (detección) → Recorte + perspectiva → 81 celdas → OCR (CNN) → Matriz 9×9 → Backtracking → Solución
-```
-
-| Fase | Técnica | Detalle |
-|------|---------|---------|
-| Detección del recuadro | **YOLO** (Ultralytics) | Modelo entrenado con ~230 imágenes etiquetadas. Confianza ~98%. |
-| Corrección de perspectiva | **OpenCV** | `adaptiveThreshold` + contorno de la cuadrícula interior + `getPerspectiveTransform`. Ignora bordes de color (p. ej. el borde azul de cuadernos). |
-| División en celdas | **OpenCV** | Rejilla 9×9 con margen proporcional para evitar las líneas. |
-| Lectura de dígitos (OCR) | **CNN (Keras)** | Red entrenada con **dígitos impresos generados a partir de fuentes tipográficas** (no MNIST manuscrito) + *data augmentation*. ~100% de accuracy. |
-| Resolución | **Backtracking** | Algoritmo clásico de fuerza bruta con poda. Garantiza solución correcta. |
-| Resolución alternativa | **CNN Solver** | Red convolucional que predice la solución completa "por intuición" (en desarrollo, para comparar velocidad vs fiabilidad). |
-
----
-
-## 🗂️ Estructura del proyecto
-
-```
-sudoku_master/
-├── app/                  # Recursos de la app
-├── cuadernos/            # Notebooks de desarrollo y entrenamiento
-│   ├── entrenar_ocr_fuentes.ipynb     # Entrena la CNN OCR (dígitos de fuentes)
-│   ├── entrenar_solver_colab.ipynb    # Entrena la CNN Solver (Colab + GPU)
-│   └── sudoku_local_v2.ipynb          # Pipeline completo paso a paso (debug)
-├── img_pruebas/          # Imágenes de prueba
-├── modelos/
-│   ├── yolo.pt                  # Detección del recuadro
-│   ├── modelo_ocr.keras         # OCR de dígitos
-│   └── modelo_sudoku.keras      # CNN Solver
-├── app.py                # Aplicación Streamlit (tema Matrix)
-├── packages.txt          # Dependencias del sistema (libGL, etc.)
-├── requirements.txt      # Dependencias Python
-└── README.md
+sudoku_reloaded/
+├── README.md
+├── app/
+│   └── app_matrix_doble_solucion.py
+├── cuadernos/
+│   ├── deteccion_sudoku.ipynb
+│   ├── entrenamiento_YOLO.ipynb
+│   ├── entrenar_ocr_fuentes.ipynb
+│   ├── entrenar_solver_colab.ipynb
+│   └── sudoku_definitivo_comparacion_comentado.ipynb
+├── img_pruebas/
+│   └── (imágenes de sudokus para probar la app)
+└── modelos/
+    ├── yolo.pt
+    ├── modelo_ocr.keras
+    └── modelo_sudoku_mejor.keras
 ```
 
 ---
 
-## 🚀 Puesta en marcha (local)
+## El pipeline completo
 
-### 1. Clonar y crear entorno virtual
+```
+📷 Foto
+   ↓
+🎯 YOLO          → detecta y recorta el tablero en la imagen
+   ↓
+📐 Perspectiva   → corrige la distorsión geométrica (homografía)
+   ↓
+🔬 Morfología    → elimina las líneas de la cuadrícula
+   ↓
+✂️  Segmentación → divide en 81 celdas individuales
+   ↓
+🔢 CNN OCR       → clasifica cada celda como dígito 0-9
+   ↓
+🧠 Red neuronal  → resuelve los 81 valores de golpe (inferencia directa)
+⚙️  Backtracking → resuelve por fuerza bruta garantizada
+   ↓
+📊 Comparativa   → métricas de acierto, tiempo y fiabilidad
+```
+
+---
+
+## Los tres modelos
+
+| Modelo | Función | Entrada | Salida |
+|--------|---------|---------|--------|
+| `yolo.pt` | Detecta el recuadro del sudoku en la foto | Imagen completa | Bounding box (x1,y1,x2,y2) |
+| `modelo_ocr.keras` | Lee el dígito de cada celda | Celda 28×28 px gris | Clase 0-9 |
+| `modelo_sudoku_mejor.keras` | Resuelve el puzzle completo | Vector 81 valores normalizados /9 | (81,9) softmax → argmax+1 |
+
+---
+
+## Proceso de desarrollo
+
+### Fase 1 — Detección del tablero
+
+El primer reto fue localizar el tablero en una fotografía real: ángulos, iluminación variable, bordes de colores (cuadernos con marco azul), perspectiva. Se entrenó un modelo YOLO con imágenes de sudokus en distintas condiciones para obtener el bounding box del tablero.
+
+Tras el recorte, la corrección de perspectiva usa **umbral adaptativo gaussiano** (no umbral global) para detectar el contorno interior de la cuadrícula ignorando bordes de color. La homografía transforma el cuadrilátero detectado en un cuadrado de 450×450 px.
+
+### Fase 2 — OCR con CNN propia
+
+Se descartó EasyOCR (lento, inconsistente con dígitos tipográficos) y se entrenó una CNN específica con dígitos generados a partir de fuentes de imprenta, que es el estilo real de un sudoku impreso o de periódico — muy distinto a los manuscritos de MNIST.
+
+El preprocesado de cada celda sigue este orden:
+1. Eliminación de líneas de cuadrícula con morfología MORPH_OPEN (kernels horizontal y vertical separados)
+2. Segmentación en 81 celdas con margen de 6 px para evitar residuos de líneas
+3. Detección de celda vacía por contraste centro vs esquinas (heurística sin inferencia)
+4. Resize a 28×28 px + CLAHE (ecualización adaptativa) + umbral Otsu sin inversión
+5. Inferencia CNN: argmax sobre 10 clases, con corrección si argmax devuelve clase 0
+
+### Fase 3 — Solver neuronal
+
+Se entrenó una red Conv2D sobre un CSV de ~1,3 GB con 1 millón de puzzles reales. La arquitectura trata el grid 9×9 como una imagen de 1 canal y aplica 6 capas convolucionales con BatchNormalization, terminando en una capa Conv2D(9, 1×1, softmax) que produce directamente una probabilidad por cada uno de los 9 dígitos para cada celda.
+
+Entrenamiento en Google Colab con GPU T4:
+- Batch size: 256 (optimizado para GPU)
+- Epochs: 30 con EarlyStopping (patience=4)
+- ReduceLROnPlateau: factor 0.5, patience 2
+- ModelCheckpoint: guarda solo el mejor val_accuracy
+- Mejor val_accuracy obtenida: ~77,4% por celda
+
+### Fase 4 — Backtracking
+
+Algoritmo clásico de búsqueda recursiva con retroceso. Encuentra la primera celda vacía, prueba dígitos del 1 al 9 comprobando las tres restricciones del sudoku (fila, columna, región 3×3), y retrocede si llega a un callejón sin salida. Garantiza solución al 100% si el puzzle es válido.
+
+### Fase 5 — Comparativa
+
+La app muestra ambas soluciones lado a lado con código de colores:
+- 🟢 **Verde** → celda que la CNN acertó (coincide con backtracking)
+- 🔴 **Rojo** → celda que la CNN falló
+- 🟡 **Ámbar** → celda resuelta por backtracking
+- ⬜ **Blanco** → pista original del puzzle
+
+La tabla de métricas compara celdas correctas, tiempo en ms y garantía de solución.
+
+---
+
+## La app — SUDOKU RELOADED
+
+Interfaz Streamlit temática de Matrix con flujo de 5 fases activadas por botones secuenciales.
+
+### Instalación
 
 ```bash
-git clone https://github.com/RobertoCantero82/sudoku_master.git
-cd sudoku_master
-
-python -m venv .venv
-# Windows
-.\.venv\Scripts\Activate.ps1
-# macOS / Linux
-source .venv/bin/activate
+pip install streamlit ultralytics tensorflow opencv-python-headless numpy
 ```
 
-> Si en Windows PowerShell te bloquea la activación:
-> `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass`
-
-### 2. Instalar dependencias
+### Ejecución
 
 ```bash
-pip install -r requirements.txt
+# desde la raíz del proyecto
+streamlit run app/app_matrix_doble_solucion.py
 ```
 
-### 3. Lanzar la app
+### Flujo de la app
 
-```bash
-streamlit run app.py
+| Fase | Botón | Proceso |
+|------|-------|---------|
+| Inicio | 🔴 PÍLDORA ROJA | Arranca el flujo con mensajes de hackeo animados |
+| 1 | LOCALIZACIÓN SUDOKU | YOLO + corrección de perspectiva |
+| 2 | DESENCRIPTANDO | CNN OCR — lee los 81 dígitos |
+| 3 | RED NEURONAL | Solver neuronal — inferencia directa |
+| 4 | BACKTRACKING | Resolución garantizada |
+| 5 | ANÁLISIS COMPARATIVO | Tableros lado a lado + tabla de métricas |
+
+### Rutas de modelos
+
+La app está en `app/` y los modelos en `modelos/` al mismo nivel. Las rutas se resuelven automáticamente:
+
+```python
+BASE_DIR    = os.path.dirname(os.path.abspath(__file__))  # .../sudoku_reloaded/app/
+MODELOS_DIR = os.path.join(BASE_DIR, "..", "modelos")     # .../sudoku_reloaded/modelos/
 ```
 
-La primera vez, EasyOCR/Keras descargan sus pesos (puede tardar un par de minutos).
+No es necesario modificar ninguna ruta si se respeta la estructura de carpetas del proyecto.
+
+### Rutas en los cuadernos
+
+Los notebooks se ejecutan desde `cuadernos/` y usan rutas relativas:
+
+```python
+RUTA_YOLO       = Path('../modelos/yolo.pt')
+RUTA_MODELO_OCR = Path('../modelos/modelo_ocr.keras')
+RUTA_SOLVER     = Path('../modelos/modelo_sudoku_mejor.keras')
+RUTA_IMAGEN     = Path('../img_pruebas/024.png')
+```
 
 ---
 
-## 🖥️ La app: SUDOKU RELOADED
+## Cuadernos
 
-Interfaz con estética *Matrix*: lluvia de código verde de fondo, terminal en verde fósforo y un flujo por fases que el usuario va ejecutando con botones:
-
-- 🔴 **TOMAR LA PÍLDORA ROJA** — inicia la intrusión
-- ▶ **FASE 1 · LOCALIZACIÓN SUDOKU** — YOLO detecta y recorta
-- ▶ **FASE 2 · DESENCRIPTANDO** — OCR lee los dígitos
-- ▶ **FASE 3 · HACKEANDO MATRIX** — backtracking resuelve
-
-Durante cada fase aparecen mensajes animados de "hackeo" de broma, y la solución final distingue en **verde** los dígitos originales y en **ámbar** los reconstruidos por el sistema.
-
----
-
-## 🏋️ Entrenamiento de los modelos
-
-### CNN OCR (dígitos)
-
-`cuadernos/entrenar_ocr_fuentes.ipynb` genera un dataset de dígitos a partir de las fuentes tipográficas del sistema (Arial, Times, Courier, DejaVu, etc.) con *data augmentation* (rotaciones, desenfoque, ruido, sombras) para simular fotos reales. La clave del proyecto: **MNIST manuscrito no sirve para dígitos impresos**; generar el dataset desde fuentes da casi 100% de acierto.
-
-### CNN Solver
-
-`cuadernos/entrenar_solver_colab.ipynb` (pensado para Colab + GPU) entrena una red convolucional con un dataset de >1 millón de sudokus. Métrica clave: **% de sudokus resueltos completos** (no solo accuracy por celda). La narrativa del proyecto compara la red neuronal (rápida pero falible) contra el backtracking (lento pero 100% fiable).
+| Cuaderno | Descripción |
+|----------|-------------|
+| `deteccion_sudoku.ipynb` | Exploración inicial: detección de contornos, corrección de perspectiva, segmentación de celdas |
+| `entrenamiento_YOLO.ipynb` | Entrenamiento del detector de tablero con YOLO |
+| `entrenar_ocr_fuentes.ipynb` | Generación del dataset de dígitos tipográficos y entrenamiento de la CNN OCR |
+| `entrenar_solver_colab.ipynb` | Entrenamiento del solver neuronal en Colab con GPU sobre el CSV de 1M de sudokus |
+| `sudoku_definitivo_comparacion_comentado.ipynb` | Flujo completo, comentado línea a línea. Desde la detección del recuadro de juego, pasando por el reconocimiento óptico de caracteres, hasta las soluciones (CNN y backtracking)y su comparativa.
 
 ---
 
-## 🛠️ Stack tecnológico
+## Tecnologías
 
-- **Python**
-- **Ultralytics YOLO** — detección de objetos
-- **OpenCV** — procesamiento de imagen
-- **TensorFlow / Keras** — redes neuronales (OCR y solver)
-- **EasyOCR** — OCR de respaldo
+- **Python 3.10**
+- **OpenCV** — procesamiento de imagen, morfología, perspectiva
+- **Ultralytics YOLO** — detección del tablero
+- **TensorFlow / Keras** — CNN OCR y solver neuronal
 - **Streamlit** — interfaz web
-- **NumPy**, **Pillow**, **Matplotlib**
-
----
-
-## 📋 Notas
-
-- Para mejores resultados, sube la foto **bien orientada** (números legibles) y con buena iluminación. Las capturas de pantalla dan lectura prácticamente perfecta; las fotos con sombras fuertes pueden generar algún error de lectura.
-- Si el backtracking falla, suele indicar un error de lectura del OCR: prueba con otra imagen.
-
----
-
-## 👤 Autor
-
-**Roberto Cantero** — Periodista de tecnología y ciencia reconvertido a Data Science.
-GitHub: [@RobertoCantero82](https://github.com/RobertoCantero82)
-
----
-
-*"REALITY.EXE HA DEJADO DE FUNCIONAR · RESUELVE EL SUDOKU"* 🟢
+- **NumPy** — operaciones matriciales
+- **Google Colab + GPU T4** — entrenamiento del solver
