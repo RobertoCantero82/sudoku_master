@@ -15,7 +15,7 @@ import streamlit.components.v1 as components
 BASE_DIR    = os.path.dirname(os.path.abspath(__file__))
 MODELOS_DIR = os.path.join(BASE_DIR, "..", "modelos")
 
-st.set_page_config(page_title="SUDOKU RELOADED", page_icon="🟢", layout="centered")
+st.set_page_config(page_title="SUDOKU RELOADED", page_icon="🟢", layout="wide")
 
 # oculto el menú, el header y el footer de streamlit
 st.markdown("""
@@ -65,7 +65,7 @@ st.markdown("""
 @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
 
 .stApp { background-color: #000000; }
-.main .block-container { background: transparent; position: relative; z-index: 1; }
+.main .block-container { background: transparent; position: relative; z-index: 1; max-width: 860px !important; margin-left: auto !important; margin-right: auto !important; padding-left: 2rem !important; padding-right: 2rem !important; }
 html, body, [class*="css"] { font-family: 'Share Tech Mono', monospace; font-size: 19.55px; }
 
 h1 {
@@ -157,6 +157,7 @@ p, .stMarkdown p { color: #00cc35; }
 @keyframes puntosanim { 0%{content:'';} 25%{content:'.';} 50%{content:'..';} 75%{content:'...';} }
 .cur { animation: parpadeo 0.8s step-end infinite; }
 @keyframes parpadeo { 50% { opacity: 0; } }
+.stButton { display:flex; justify-content:center; }
 .upload-area { border: 2px dashed #00ff41; background: rgba(0,20,0,0.6); padding: 2rem; text-align: center; box-shadow: inset 0 0 30px rgba(0,255,65,0.08); }
 .stButton > button {
     font-family: 'Share Tech Mono', monospace !important;
@@ -571,6 +572,12 @@ def render_comparativa(sudoku, tablero_cnn, tablero_bt, t_cnn, t_bt):
 # 4=fase3-cnn · 5=fase4-backtrack · 6=fase5-comparativa
 # ════════════════════════════════════════════════════════════
 
+def _reset():
+    for k in list(st.session_state.keys()):
+        del st.session_state[k]
+    components.html("<script>window.parent.location.reload();</script>", height=1)
+    time.sleep(0.5)
+
 if "paso" not in st.session_state:
     st.session_state.paso  = 0
     st.session_state.datos = {}
@@ -625,10 +632,8 @@ if st.session_state.paso == 0:
             unsafe_allow_html=True
         )
         st.markdown("<br><br>", unsafe_allow_html=True)
-        _, col_r, _ = st.columns([1, 2, 1])
-        with col_r:
-            if st.button("↺ NUEVA INTRUSIÓN"):
-                components.html("<script>window.parent.location.reload();</script>", height=0)
+        if st.button("↺ NUEVA INTRUSIÓN", key='btn_nueva_1'):
+            _reset()
         st.stop()
 
     st.markdown("""
@@ -750,15 +755,15 @@ if img_sl is not None:
     <p style='color:#00aa2e; font-family:"Share Tech Mono",monospace; font-size:0.80rem;
               letter-spacing:1px; margin-bottom:8px;'>IMAGEN PROCESADA POR EL MODELO</p>
     <img src='data:image/png;base64,{b64}'
-         style='width:280px; height:280px; object-fit:cover;
+         style='width:396px; height:413px; object-fit:cover;
                 border:2px solid #00ff41; box-shadow:0 0 20px rgba(0,255,65,0.4);
                 display:block;'/>
   </div>
   <div style='text-align:center; flex-shrink:0;'>
     <p style='color:#00aa2e; font-family:"Share Tech Mono",monospace; font-size:0.80rem;
               letter-spacing:1px; margin-bottom:8px;'>DÍGITOS RECONOCIDOS POR LA CNN</p>
-    <div style='width:282px; height:282px; overflow:hidden;'>
-      <div style='transform:scale(0.71); transform-origin:top left; width:396px;'>
+    <div style='width:396px; overflow:visible;'>
+      <div>
         {render_sudoku(sudoku).replace("<div class='sudoku-wrap'>","<div style='margin:0;'>").strip()}
       </div>
     </div>
@@ -826,10 +831,8 @@ if not st.session_state.datos["exito"]:
     </div>
 </div>
 """, unsafe_allow_html=True)
-    _, col_r, _ = st.columns([1, 2, 1])
-    with col_r:
-        if st.button("↺ REINTENTAR CON OTRA IMAGEN"):
-            components.html("<script>window.parent.location.reload();</script>", height=0)
+    if st.button("↺ REINTENTAR CON OTRA IMAGEN", key='btn_reintentar'):
+        _reset()
     st.stop()
 
 st.markdown("""
@@ -900,8 +903,5 @@ with c4:
                 f"<span class='stat-lbl'>T. BACKTRACKING</span></div>", unsafe_allow_html=True)
 
 st.markdown("<hr class='px-divider'>", unsafe_allow_html=True)
-_, col_c, _ = st.columns([1, 2, 1])
-with col_c:
-    if st.button("↺ NUEVA INTRUSIÓN"):
-        # recarga completa del navegador: limpia session_state y vuelve al estado inicial
-        components.html("<script>window.parent.location.reload();</script>", height=0)
+if st.button("↺ NUEVA INTRUSIÓN", key='btn_nueva_final'):
+    _reset()
